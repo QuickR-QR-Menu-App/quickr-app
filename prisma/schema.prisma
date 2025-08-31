@@ -1,0 +1,108 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// MODELS
+
+model Admin {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String //hashed
+  venues    Venue[]
+  createdAt DateTime @default(now())
+}
+
+model Venue {
+  id        String         @id @default(cuid())
+  name      String
+  qrCode    String         @unique
+  createdAt DateTime       @default(now())
+  menuItems MenuItem[]
+  orders    Order[]
+  adminId   String
+  admin     Admin          @relation(fields: [adminId], references: [id])
+  settings  VenueSettings?
+}
+
+model MenuItem {
+  id          String      @id @default(cuid())
+  venueId     String
+  venue       Venue       @relation(fields: [venueId], references: [id])
+  name        String
+  description String?
+  price       Decimal
+  category    String
+  isAvailable Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  orderItems  OrderItem[]
+}
+
+model Order {
+  id         String      @id @default(cuid())
+  venueId    String
+  venue      Venue       @relation(fields: [venueId], references: [id])
+  name       String
+  createdAt  DateTime    @default(now())
+  status     OrderStatus @default(PENDING)
+  total      Decimal
+  orderItems OrderItem[]
+  payment    Payment?
+}
+
+model OrderItem {
+  id       String   @id @default(cuid())
+  orderId  String
+  order    Order    @relation(fields: [orderId], references: [id])
+  itemId   String
+  item     MenuItem @relation(fields: [itemId], references: [id])
+  quantity Int
+  notes    String?
+}
+
+model Payment {
+  id         String        @id @default(cuid())
+  orderId    String        @unique
+  order      Order         @relation(fields: [orderId], references: [id])
+  method     String // e.g., "tpay", "blik"
+  status     PaymentStatus @default(PENDING)
+  providerId String? // ID zewnętrzny z tpay
+  paidAt     DateTime?
+}
+
+model VenueSettings {
+  id         String  @id @default(cuid())
+  venueId    String  @unique
+  venue      Venue   @relation(fields: [venueId], references: [id])
+  brandColor String?
+  logoUrl    String?
+  currency   String  @default("PLN")
+  language   String  @default("pl")
+  kioskToken String  @unique // token do ekranu zamówień
+}
+
+enum OrderStatus {
+  PENDING
+  IN_PROGRESS
+  READY
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+}
